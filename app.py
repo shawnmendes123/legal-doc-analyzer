@@ -1,13 +1,9 @@
 import streamlit as st
 import PyPDF2
 import re
-import spacy
-
-# Load NLP model
-nlp = spacy.load("en_core_web_sm")
 
 # Page config
-st.set_page_config(page_title="Legal Analyzer", layout="centered")
+st.set_page_config(page_title="ShawnLex", layout="centered")
 
 # Styling
 st.markdown("""
@@ -24,13 +20,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title
-st.title("⚖️ Legal Document Analyzer")
-st.caption("Upload a legal document and extract key insights instantly")
+st.title("⚖️ ShawnLex")
+st.caption("AI-powered legal document analyzer")
 
-# File upload
+# Upload
 uploaded_file = st.file_uploader("📄 Upload PDF", type="pdf")
 
-# Extract text from PDF
+# Extract text
 def extract_text_from_pdf(file):
     pdf_reader = PyPDF2.PdfReader(file)
     text = ""
@@ -39,29 +35,26 @@ def extract_text_from_pdf(file):
             text += page.extract_text()
     return text
 
-# NLP Analysis
+# Analyze text (NO spaCy — deploy safe)
 def analyze_text(text):
-    doc = nlp(text)
-
     names = set()
     dates = set()
     amounts = set()
 
-    for ent in doc.ents:
+    # Company names (better pattern)
+    company_pattern = r'([A-Z][A-Za-z&., ]+(?:Pvt\. Ltd\.|Ltd\.|LLP|Group|Company))'
+    matches = re.findall(company_pattern, text)
 
-        # Extract Organizations / People
-        if ent.label_ in ["ORG", "PERSON"]:
-            # Filter meaningful names only
-            if any(word in ent.text for word in ["Ltd", "Pvt", "LLP", "Company", "Group"]):
-                names.add(ent.text)
+    for match in matches:
+        names.add(match.strip())
 
-        # Extract Dates
-        elif ent.label_ == "DATE":
-            dates.add(ent.text)
+    # Dates
+    date_pattern = r'\d{1,2} \w+ \d{4}'
+    dates.update(re.findall(date_pattern, text))
 
-        # Extract Money
-        elif ent.label_ == "MONEY":
-            amounts.add(ent.text)
+    # Amounts
+    amount_pattern = r'₹\d+(?:,\d+)*'
+    amounts.update(re.findall(amount_pattern, text))
 
     return {
         "Names": list(names),
@@ -69,7 +62,7 @@ def analyze_text(text):
         "Amounts": list(amounts)
     }
 
-# Run when file uploaded
+# Run analysis
 if uploaded_file is not None:
     with st.spinner("Analyzing document..."):
         text = extract_text_from_pdf(uploaded_file)
@@ -77,16 +70,15 @@ if uploaded_file is not None:
 
     st.success("Analysis Complete ✅")
 
-    # Layout in columns
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.subheader("👤 Parties / Organizations")
+        st.subheader("👤 Parties")
         if result["Names"]:
             for name in result["Names"]:
                 st.write(f"- {name}")
         else:
-            st.write("No valid entities found")
+            st.write("No parties found")
 
     with col2:
         st.subheader("📅 Dates")
